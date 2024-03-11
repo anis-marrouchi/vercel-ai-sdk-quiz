@@ -1,10 +1,10 @@
 <a href="https://sdk.vercel.ai/rsc-demo">
   <img alt="Generative UI Demo" src="https://github.com/vercel/ai/assets/4060187/f21fa839-c710-4f09-9af4-2056f603d98f">
-  <h1 align="center">Generative UI Demo</h1>
+  <h1 align="center">Generative UI QUIZ Demo</h1>
 </a>
 
 <p align="center">
-  An experimental preview of AI SDK 3.0 with Generative UI support
+  An experimental QUIZ using AI SDK 3.0 with Generative UI support
 </p>
 
 ## Features
@@ -24,7 +24,8 @@
 
 You can deploy your own version of the demo to Vercel with one click:
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fai%2Fblob%2Fmain%2Fexamples%2Fnext-ai-rsc&env=OPENAI_API_KEY&envDescription=OpenAI%20API%20Key&envLink=https%3A%2F%2Fplatform.openai.com%2Fapi-keys)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fanis-marrouchi%2Fvercel-ai-sdk-quiz.git&env=OPENAI_API_KEY&envDescription=OpenAI+API+Key&envLink=https%3A%2F%2Fplatform.openai.com%2Fapi-keys
+)
 
 ## Running locally
 
@@ -45,7 +46,7 @@ Your app should now be running on [localhost:3000](http://localhost:3000/).
 
 ## Authors
 
-This library is created by [Vercel](https://vercel.com) and [Next.js](https://nextjs.org) team members, with contributions from:
+The library AI SDK is created by [Vercel](https://vercel.com) and [Next.js](https://nextjs.org) team members, with contributions from:
 
 - Shu Ding ([@shuding\_](https://twitter.com/shuding_)) - [Vercel](https://vercel.com)
 - Max Leiter ([@max_leiter](https://twitter.com/max_leiter)) - [Vercel](https://vercel.com)
