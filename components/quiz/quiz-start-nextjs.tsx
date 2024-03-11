@@ -12,7 +12,7 @@ import { useActions, useUIState } from "ai/rsc";
 import { AI } from "@/app/action";
 import { SVGProps, useState } from "react"
 import { UserMessage } from "./message"
-import { subjects } from "./data"
+import { subjects } from "../../scripts/data"
 import {
   Select,
   SelectContent,

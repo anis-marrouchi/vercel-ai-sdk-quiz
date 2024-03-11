@@ -55,6 +55,7 @@ export default function RootLayout({
         className={`font-sans antialiased ${GeistSans.variable} ${GeistMono.variable}`}
       >
         <Toaster />
+        {/* @ts-ignore */}
         <AI>
           <Providers
             attribute="class"

@@ -15,7 +15,7 @@ export function QuizQuestion({ question, questionType, possibleAnswers, showAnsw
   const [, setMessages] = useUIState<typeof AI>();
   const { submitAnswer } = useActions<typeof AI>();
   const isMultipleChoice = questionType === 'multiple-choice';
-  const handleOptionChange = (e) => {
+  const handleOptionChange = (e: any) => {
     const value = e.target.value;
     if (isMultipleChoice) {
       setSelectedOption(prev => 
@@ -27,7 +27,7 @@ export function QuizQuestion({ question, questionType, possibleAnswers, showAnsw
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     if (isMultipleChoice && selectedOption.length === 0) {
       toast.toast({
