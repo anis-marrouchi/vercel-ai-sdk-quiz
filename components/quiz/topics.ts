@@ -211,7 +211,7 @@ export const subjects: {
   {
     "topic": "javascript",
     "name": "javascript-quiz.md",
-    "url": "https://raw.githubusercontent.com/lydiahallie/javascript-questions/master/README.md"
+    "url": `${process.env.NEXT_PUBLIC_BASE_URL}/quizzes/javascript-quiz.md`
   },
   {
     "topic": "jquery",
