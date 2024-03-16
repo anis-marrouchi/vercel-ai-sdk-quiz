@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { createAI, createStreamableUI, getMutableAIState } from 'ai/rsc';
+import { createAI, createStreamableUI, getMutableAIState, render } from 'ai/rsc';
 import OpenAI from 'openai';
 
 import {
@@ -96,7 +96,7 @@ async function submitAnswer(answer: string) {
   'use server';
 
   const response = await submitUserMessage(`${answer}`);
- 
+
 
   return {
     answerUI: true,
@@ -120,13 +120,15 @@ async function submitUserMessage(content: string) {
     <BotMessage className="items-center">{spinner}</BotMessage>,
   );
 
-  const completion = runOpenAICompletion(openai, {
-    model: 'gpt-3.5-turbo',
-    stream: true,
+
+  const ui = render({
+    provider: openai,
+    model: 'gpt-4-0125-preview',
+    temperature: 0,
     messages: [
       {
         role: 'system',
-        content: `\
+        content: `[\
         You are an AI chatbot designed to generate advanced certificate exam preparation on a chosen topic based on the provided content.\n\
         1. **\`start_quiz\` Starting the Quiz**: Once the user is ready to start the quiz, call \`start_quiz(topic, numberOfQuestions)\` to confirm the topic and the number of questions. This step should only be done once per quiz session to initialize the quiz. You will receive a response with the quiz content details to be used in the subsequent steps.\n\
         \n\
@@ -148,60 +150,96 @@ async function submitUserMessage(content: string) {
         4. **\`display_result\` Completing the Quiz**: Upon the user answering all questions or when the quiz reaches its end, call \`display_result(totalQuestions, correctAnswers, incorrectAnswers, unansweredQuestions)\` to display the user's performance metrics.\n\
         \n\
         Your interaction with the user is strictly limited through the use of the provided functions. You should not prompt the user for input or display any messages outside of the provided functions. Ensure that the quiz is engaging and educational, providing immediate feedback to the user's responses. Throughout the quiz, track the user's progress, including attempted questions and their answers, providing feedback as appropriate. Ensure a seamless and engaging quiz experience by dynamically responding to the user's actions without redundant prompts."
-    `,
-    },
+        ]`,
+      },
       ...aiState.get().map((info: any) => ({
         role: info.role,
         content: info.content,
         name: info.name,
       })),
     ],
-    functions: [
-      {
-        name: 'start_quiz',
+    initial: <BotMessage className="items-center">{spinner}</BotMessage>,
+    // @ts-ignore
+    text: ({content, done}) => {
+      if (done) {
+        aiState.done([...aiState.get(), { role: 'assistant', content }]);
+      }
+      return <BotMessage>{content}</BotMessage>;
+    },
+    tools: {
+      start_quiz: {
         description: 'Initialize the quiz with a specified topic and number of questions.',
         parameters: z.object({
-          topics: z
-            .string().optional().default('reactjs')
+          topics: z.string().optional().default('reactjs')
             .describe('The topics of the quiz, e.g. "reactjs", "nextjs".'),
-          numberOfQuestions: z
-            .number().optional()
+          numberOfQuestions: z.number().optional()
             .describe('The total number of questions to include in the quiz.'),
-        }),
+        }).required(),
+        /// @ts-ignore
+        render: async function* ({ topics, numberOfQuestions }) {
+          
+          yield <BotCard>
+            <QuizStartSkeleton />
+          </BotCard>
+          // Update the AI state with details about the quiz that's starting
+          aiState.done([
+            ...aiState.get(),
+            {
+              role: 'function',
+              name: 'start_quiz',
+              content: JSON.stringify({ topics, numberOfQuestions }),
+            },
+          ]);
+
+          return <BotCard>
+            {/* @ts-ignore */}
+            <QuizStart topics={topics} numberOfQuestions={numberOfQuestions} />
+          </BotCard>
+        }
       },
-      {
-        name: 'quiz_question',
+      quiz_question: {
         description: 'Display a quiz question, including its type and possible answers, and manage user interactions.',
         parameters: z.object({
-          question: z
-            .string()
-            .describe('The content of the question to display. This can include code snippets or other relevant details. Use Markdown for formatting.'),
-          questionType: z
-            .enum(['multiple-choice','single-choice', 'boolean' ])
-            .describe('The type of the question, e.g., "multiple-choice", "boolean", "single-choice". Use "multiple-choice" for questions with multiple possible answers, "single-choice" for questions with a single correct answer, and "boolean" for true/false questions.'),
-          possibleAnswers: z
-            .array(z.string())
-            .describe('An array of possible answers for the question. This can include code snippets or other relevant details. Use Markdown for formatting. For boolean questions, the possible answers should be "true" and "false".'),
-          showAnswer: z
-            .boolean()
-            .optional()
+          question: z.string().describe('The content of the question to display.'),
+          questionType: z.enum(['multiple-choice', 'single-choice', 'boolean'])
+            .describe('The type of the question.'),
+          possibleAnswers: z.array(z.string())
+            .describe('An array of possible answers for the question.'),
+          showAnswer: z.boolean().optional()
             .describe('Whether to immediately show the correct answer and explanation.'),
-          answer: z
-            .string()
-            .optional()
+          answer: z.string().optional()
             .describe('The correct answer to the question.'),
-          source: z
-            .string()
-            .optional()
-            .describe('The source or reference for the correct answer.'),
-          explanation: z
-            .string()
-            .optional()
+          explanation: z.string().optional()
             .describe('A detailed explanation of the correct answer.'),
-        }),
+          source: z.string().optional()
+            .describe('The source or reference for the correct answer.'),
+        }).required(),
+        /// @ts-ignore
+        render: async function* ({ question, questionType, possibleAnswers, showAnswer, answer, source, explanation }) {
+          
+          // Preliminary UI feedback to indicate a question is being prepared
+          yield <BotCard>
+            <QuizQuestionSkeleton />
+          </BotCard>;
+
+          // Update the AI state with the current question details
+          aiState.done([
+            ...aiState.get(),
+            {
+              role: 'function',
+              name: 'quiz_question',
+              content: JSON.stringify({ question, questionType, possibleAnswers }),
+            },
+          ]);
+          // Update the UI with the current question
+          return <BotCard>
+            {/* @ts-ignore */}
+            <QuizQuestion question={question} questionType={questionType} possibleAnswers={possibleAnswers} answer={answer} showAnswer={showAnswer} source={source} explanation={explanation} />
+          </BotCard>;
+
+        }
       },
-      {
-        name: 'show_answer',
+      show_answer: {
         description: 'Show the correct answer after each question when requested with an optional icon and customizable text.',
         parameters: z.object({
           icon: z.enum(['check', 'exclamation']).optional().default('check')
@@ -209,166 +247,73 @@ async function submitUserMessage(content: string) {
           text: z.string().optional().default('This is the correct answer')
             .describe('The text explaining why this is the correct answer or providing additional information.'),
         }),
-      },      
-      {
-        name: 'display_result',
+        /// @ts-ignore
+        render: async function* ({ icon, text }) {
+          // Display a skeleton to indicate that the answer is being prepared
+          
+          yield <BotCard>
+            {/* Assuming you have an AnswerSkeleton component for this purpose */}
+            <ShowAnswerSkeleton />
+          </BotCard>
+
+          // Update the UI with the answer details
+          // Optionally update the AI state if you need to track that the answer was shown
+          aiState.done([
+            ...aiState.get(),
+            {
+              role: 'function',
+              name: 'show_answer',
+              content: JSON.stringify({ icon, text }),
+            },
+          ]);
+
+          return <BotCard>
+            {/* @ts-ignore */}
+            <ShowAnswer icon={icon} text={text} />
+          </BotCard>
+
+        }
+      },
+      display_result: {
         description: 'Display the user’s overall performance upon completing the quiz.',
         parameters: z.object({
-          totalQuestions: z
-            .number()
-            .describe('The total number of questions the user attempted.'),
-          correctAnswers: z
-            .number()
-            .describe('The number of questions the user answered correctly.'),
-          incorrectAnswers: z
-            .number()
-            .describe('The number of questions the user answered incorrectly.'),
-          unansweredQuestions: z
-            .number()
-            .optional()
-            .describe('The number of questions the user did not answer, if any.'),
-        }),
-      },
-    ],
-    temperature: 0,
-  });
+          totalQuestions: z.number().describe('The total number of questions the user attempted.'),
+          correctAnswers: z.number().describe('The number of questions the user answered correctly.'),
+          incorrectAnswers: z.number().describe('The number of questions the user answered incorrectly.'),
+          unansweredQuestions: z.number().optional().describe('The number of questions the user did not answer, if any.'),
+        }).required(),
+        /// @ts-ignore
+        render: async function* ({ totalQuestions, correctAnswers, incorrectAnswers, unansweredQuestions }) {
+          
+          // Preliminary UI feedback to indicate results are being compiled
+          yield <BotCard>
+            <QuizResultSkeleton />
+          </BotCard>;
 
+          // Update the AI state with the quiz result details
+          aiState.done([
+            ...aiState.get(),
+            {
+              role: 'function',
+              name: 'display_result',
+              content: JSON.stringify({ totalQuestions, correctAnswers, incorrectAnswers, unansweredQuestions }),
+            },
+          ]);
 
-  completion.onTextContent((content: string, isFinal: boolean) => {
-    reply.update(<BotMessage>{content}</BotMessage>);
-    if (isFinal) {
-      reply.done();
-      aiState.done([...aiState.get(), { role: 'assistant', content }]);
+          // Update the UI with the quiz results
+          return <BotCard>
+            {/* @ts-ignore */}
+            <QuizResult totalQuestions={totalQuestions} correctAnswers={correctAnswers} incorrectAnswers={incorrectAnswers} unansweredQuestions={unansweredQuestions} />
+          </BotCard>;
+
+        }
+      }
     }
   });
 
-  completion.onFunctionCall('start_quiz', async ({ numberOfQuestions, topics }) => {
-    // Preliminary UI feedback to indicate the quiz is starting
-    reply.update(
-      <BotCard>
-        <QuizStartSkeleton />
-      </BotCard>,
-    );
-
-    // Simulate a short delay to mimic processing time (e.g., selecting questions)
-    await sleep(1000);
-
-    // Update the UI with the first question or a summary of the quiz
-    reply.done(
-      <BotCard>
-        {/* @ts-ignore */}
-        <QuizStart topics={topics} numberOfQuestions={numberOfQuestions} />
-      </BotCard>,
-    );
-
-    // Update the AI state with details about the quiz that's starting
-    aiState.done([
-      ...aiState.get(),
-      {
-        role: 'function',
-        name: 'start_quiz',
-        content: JSON.stringify({ topics, numberOfQuestions }),
-      },
-    ]);
-  });
-
-  completion.onFunctionCall('show_answer', async ({ icon, text }) => {
-    // Display a skeleton to indicate that the answer is being prepared
-    reply.update(
-      <BotCard>
-        {/* Assuming you have an AnswerSkeleton component for this purpose */}
-        <ShowAnswerSkeleton />
-      </BotCard>,
-    );
-
-    // Optionally, simulate a short delay to enhance user experience
-    await sleep(1000); // Adjust the timing as necessary
-
-    // Update the UI with the answer details
-    reply.done(
-      <BotCard>
-        {/* @ts-ignore */}
-        <ShowAnswer icon={icon} text={text} />
-      </BotCard>,
-    );
-
-    // Optionally update the AI state if you need to track that the answer was shown
-    aiState.done([
-      ...aiState.get(),
-      {
-        role: 'function',
-        name: 'show_answer',
-        content: JSON.stringify({ icon, text }),
-      },
-    ]);
-});
-
-
-  completion.onFunctionCall('quiz_question', async ({ question, questionType, possibleAnswers,  showAnswer, answer, source, explanation }) => {
-    // Preliminary UI feedback to indicate a question is being prepared
-    reply.update(
-      <BotCard>
-        <QuizQuestionSkeleton />
-      </BotCard>,
-    );
-
-    // Simulate a short delay to mimic processing time
-    await sleep(1000);
-
-    // Update the UI with the current question
-    reply.done(
-      <BotCard>
-        {/* @ts-ignore */}
-        <QuizQuestion question={question} questionType={questionType} possibleAnswers={possibleAnswers} answer={answer} showAnswer={showAnswer} source={source} explanation={explanation} />
-      </BotCard>,
-    );
-
-    // Update the AI state with the current question details
-    aiState.done([
-      ...aiState.get(),
-      {
-        role: 'function',
-        name: 'quiz_question',
-        content: JSON.stringify({ question, questionType, possibleAnswers }),
-      },
-    ]);
-  });
-
-  completion.onFunctionCall('display_result', async ({ totalQuestions, correctAnswers, incorrectAnswers, unansweredQuestions }) => {
-    // Preliminary UI feedback to indicate results are being compiled
-    reply.update(
-      <BotCard>
-        <QuizResultSkeleton />
-      </BotCard>,
-    );
-
-    // Simulate a short delay to compile results
-    await sleep(1000);
-
-    // Update the UI with the quiz results
-    reply.done(
-      <BotCard>
-        {/* @ts-ignore */}
-        <QuizResult totalQuestions={totalQuestions} correctAnswers={correctAnswers} incorrectAnswers={incorrectAnswers} unansweredQuestions={unansweredQuestions} />
-      </BotCard>,
-    );
-
-    // Update the AI state with the quiz result details
-    aiState.done([
-      ...aiState.get(),
-      {
-        role: 'function',
-        name: 'display_result',
-        content: JSON.stringify({ totalQuestions, correctAnswers, incorrectAnswers, unansweredQuestions }),
-      },
-    ]);
-  });
-
-
-
   return {
     id: Date.now(),
-    display: reply.value,
+    display: ui,
   };
 }
 
@@ -386,7 +331,7 @@ const initialUIState: {
   display: React.ReactNode;
 }[] = [];
 
-export const AI = createAI({
+export const AI: any = createAI({
   actions: {
     submitUserMessage,
     startQuiz,
