@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { createAI, createStreamableUI, getMutableAIState, render } from 'ai/rsc';
+import { createAI, getMutableAIState, render } from 'ai/rsc';
 import OpenAI from 'openai';
 
 import {
@@ -115,10 +115,6 @@ async function submitUserMessage(content: string) {
       content,
     },
   ]);
-
-  const reply = createStreamableUI(
-    <BotMessage className="items-center">{spinner}</BotMessage>,
-  );
 
 
   const ui = render({
