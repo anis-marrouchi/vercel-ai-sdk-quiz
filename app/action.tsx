@@ -9,10 +9,7 @@ import {
   BotMessage
 } from '@/components/quiz';
 import { subjects } from '@/components/quiz/topics';
-import {
-  sleep,
-  runOpenAICompletion,
-} from '@/lib/utils';
+
 import { z } from 'zod';
 import { QuizStartSkeleton } from '@/components/quiz/quiz-start-skeleton';
 import { QuizStart, QuizQuestion, QuizResult } from '@/components/quiz';
